@@ -2,13 +2,21 @@ import argparse
 import os
 import shutil
 
+from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
-from PIL import Image, ImageDraw, ImageFont
 ITEM_CODE_TEMPLATE = 'templates/code.PNG'
 ITEM_SIZE_PRICE_TEMPLATE = 'templates/size_price.PNG'
 DONE_DIR = 'done'
-IMG_EXTS =['JPG', 'JPEG']
+IMG_EXTS = ['JPG', 'JPEG']
+
+# RGB Colors
+GRAY = 'rgb(105,105,105)'
+
+# Fonts
+MARKER_FELT = 'MarkerFelt.ttc'
+AMERICAN_TYPEWRITER = 'AmericanTypewriter.ttc'
+ARIAL = 'Arial.ttf'
 
 
 def prepare_for_renaming(dir_path):
@@ -31,6 +39,7 @@ def prepare_for_renaming(dir_path):
             new_path,
         )
 
+
 def prepare_dir_for_publishing(dir_path):
     done_dir = os.path.join(
         dir_path,
@@ -52,7 +61,7 @@ def prepare_dir_for_publishing(dir_path):
                 index,
                 done_dir,
             )
-        except Exception:
+        except Exception as e:
             print(f'Error happened for: {item}')
 
 
@@ -69,11 +78,8 @@ def make_final_image(original_full_path, img_dict):
             img_data['img'].convert('RGBA'),
         )
 
-    # TODO: save final item full path
-    
-
-
     return item
+
 
 def make_size_and_price_image(filename):
     """
@@ -91,12 +97,12 @@ def make_size_and_price_image(filename):
     """
     unique_identifier, size_text, *prices = filename.split('_')
 
-    font_color = 'rgb(105,105,105)'  # Gray
+    font_color = GRAY
     size_price_template = Image.open(ITEM_SIZE_PRICE_TEMPLATE)
     draw_size_price = ImageDraw.Draw(size_price_template)
-    size_price_font = ImageFont.truetype('Arial.ttf', size=350)
-    size_price_x = 300
-    size_price_y = 300
+    size_price_font = ImageFont.truetype(MARKER_FELT, size=300)
+    size_price_x = 325
+    size_price_y = 325
 
     draw_size_price.text(
         (size_price_x, size_price_y),
@@ -106,22 +112,47 @@ def make_size_and_price_image(filename):
     )
 
     price_index_to_label = {
-        0: 'Mine:':,
-        1: 'Steal:',
-        2: 'Grab:',
+        0: 'mine:',
+        1: 'steal:',
     }
 
-    for i, price in enumerate(prices):
-        size_price_y += 400
-        price_text = f'{price_index_to_label[i]} {price}'
-        draw_size_price.text(
-            (size_price_x, size_price_y),
-            price_text,
-            fill=font_color,
-            font=size_price_font,
-        )
+    price_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=275)
 
-    size_price_img = size_price_template.resize((750, 700))
+    size_price_y += 25
+
+    for i, price in enumerate(prices):
+        size_price_y += 300
+
+        if i == 2:
+            bid_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=150)
+            size_price_x += 25
+            bid_text_1 = 'Open for bidding!'
+            bid_text_2 = f'Starts at {price}'
+            draw_size_price.text(
+                (size_price_x, size_price_y),
+                bid_text_1,
+                fill=font_color,
+                font=bid_font,
+            )
+            size_price_x += 50
+            bid_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=175)
+            size_price_y += 150
+            draw_size_price.text(
+                (size_price_x, size_price_y),
+                bid_text_2,
+                fill=font_color,
+                font=bid_font,
+            )
+        else:
+            price_text = f'{price_index_to_label[i]} {price}'
+            draw_size_price.text(
+                (size_price_x, size_price_y),
+                price_text,
+                fill=font_color,
+                font=price_font,
+            )
+
+    size_price_img = size_price_template.resize((900, 900))
 
     return size_price_img
 
@@ -132,27 +163,25 @@ def make_item_code_image(item_code):
 
     :returns: img
     """
-    font_color = 'rgb(105,105,105)'  # Gray
-    item_code = f'{batch}{number:03}'
-    final_item_code_with_text = f'{item_code}.{ext}'
-
+    font_color = GRAY
     code_template = Image.open(ITEM_CODE_TEMPLATE)
     draw_code = ImageDraw.Draw(code_template)
-    code_position = 385, 260
-    code_font = ImageFont.truetype('Arial.ttf', size=400)
+    code_position = 45, 260
+    code_font = ImageFont.truetype(ARIAL, size=350)
     draw_code.text(
         code_position,
         item_code,
         fill=font_color,
         font=code_font,
     )
-    code_img = code_template.resize((600, 250))
+    code_img = code_template.resize((400, 170))
 
     return code_img
 
 
 def generate_item_code(batch, number):
     return f'{batch}{number:03}'
+
 
 def process_image(dir_path, filename, batch, number, done_dir):
     """
@@ -164,7 +193,6 @@ def process_image(dir_path, filename, batch, number, done_dir):
     except Exception:
         return
 
-
     if ext not in IMG_EXTS:
         return
 
@@ -172,41 +200,20 @@ def process_image(dir_path, filename, batch, number, done_dir):
         dir_path,
         filename,
     )
-    images = []
 
     item_code = generate_item_code(batch, number)
     code_img = make_item_code_image(item_code)
-    images.append({
-        'coordinates': (0, 20),
-        'img': code_img,
-    })
-
-
     size_price_img = make_size_and_price_image(filename_no_ext)
-    images.append({
-        'coordinates': (1450, 300),
-        'img': size_price_img,
-    })
-
-
-    final_img = make_final_image(
-        original_item_full_path,
-        images,
-    )
-
-
-
-    final_item_code_with_ext = f'{item_code}.{ext}'
 
     item = Image.open(original_item_full_path)
-
     item_copy = item.copy()
     # Add code to item
-    item_copy.paste(code_img, (0, 20), code_img.convert('RGBA'))
+    item_copy.paste(code_img, (20, 3275), code_img.convert('RGBA'))
     # Add size & price to item
-    item_copy.paste(size_price_img, (1450, 300), size_price_img.convert('RGBA'))
+    item_copy.paste(size_price_img, (1300, 25), size_price_img.convert('RGBA'))
 
     # Use code as filename for edited item
+    final_item_code_with_ext = f'{item_code}.{ext}'
     final_item_full_path = os.path.join(
         dir_path,
         final_item_code_with_ext
@@ -214,7 +221,6 @@ def process_image(dir_path, filename, batch, number, done_dir):
     item_copy.save(final_item_full_path)
 
     # Move processed image to DONE_DIR
-    # TODO: create function
     full_path = os.path.join(
         dir_path,
         filename,
@@ -231,4 +237,3 @@ if __name__ == '__main__':
     arguments = parser.parse_args()
 
     prepare_dir_for_publishing(arguments.dir_path)
-
