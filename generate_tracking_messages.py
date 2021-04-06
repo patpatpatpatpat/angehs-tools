@@ -9,7 +9,7 @@ BUYER: {buyer}
 BRANCH PICK UP - {branch_name}
 PAY UPON PICK UP: PHP {delivery_fee}.00
 
-Your item will be picked up by LBC tomorrow.
+Your item will be picked up by LBC next business day.
 Tracking Number:
 {tracking_number}
 
@@ -27,7 +27,7 @@ BUYER: {buyer}
 HOME DELIVERY - {home_delivery_address}
 PAY UPON DELIVERY: PHP {delivery_fee}.00
 
-Your item will be picked up by LBC tomorrow.
+Your item will be picked up by LBC next business day.
 Tracking Number:
 {tracking_number}
 
@@ -43,7 +43,9 @@ Angeh
 def get_tracking_data(gsheet_filename, data_range):
     print(f"Fetching data from Google Sheets file: {gsheet_filename}")
     gc = gspread.service_account(filename=SERVICE_ACCOUNT_FILENAME)
-    sheet = gc.open(gsheet_filename).sheet1
+
+    # Made to work on the last sheet
+    sheet = gc.open(gsheet_filename).worksheets()[-1]
 
     return sheet.get(data_range)
 
@@ -52,7 +54,7 @@ def restructure_tracking_data(data):
     print("Restructuring tracking data...")
     tracking_data_per_buyer = []
     for tracking in data:
-        buyer, delivery_type, street, branch, tracking_number = tracking
+        buyer, delivery_type, street, branch, tracking_number, delivery_fee = tracking
 
         tracking_data_per_buyer.append({
             'buyer': buyer,
@@ -60,6 +62,7 @@ def restructure_tracking_data(data):
             'home_delivery_address': street,
             'branch_name': branch,
             'tracking_number': tracking_number,
+            'delivery_fee': delivery_fee,
         })
 
     return tracking_data_per_buyer
@@ -82,7 +85,7 @@ def generate_tracking_file(tracking_data_per_buyer, batch_name):
 
     filename = f"{batch_name} tracking messages.txt"
 
-    with open(filename, "w") as txt_file:
+    with open(filename.replace('/', '_'), "w") as txt_file:
         txt_file.write(all_tracking_messages)
 
     print(f"Tracking messages file generated: {filename}")
