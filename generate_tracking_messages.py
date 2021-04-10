@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 SERVICE_ACCOUNT_FILENAME = 'service_account.json'
 BRANCH_PICK_UP_TEMPLATE = """
-BUYER: {buyer}
+RECEIVER: {buyer}
 BRANCH PICK UP - {branch_name}
 PAY UPON PICK UP: PHP {delivery_fee}.00
 
@@ -23,7 +23,7 @@ Angeh
 """
 
 HOME_DELIVERY_TEMPLATE = """
-BUYER: {buyer}
+RECEIVER: {buyer}
 HOME DELIVERY - {home_delivery_address}
 PAY UPON DELIVERY: PHP {delivery_fee}.00
 
