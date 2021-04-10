@@ -9,7 +9,7 @@ ITEM_CODE_TEMPLATE = 'templates/code.PNG'
 ITEM_SIZE_PRICE_TEMPLATE = 'templates/size_price.PNG'
 DONE_DIR = 'done'
 IMG_EXTS = ['JPG', 'JPEG']
-
+ITEM_CODE_COORDS = (0, 0)
 # RGB Colors
 GRAY = 'rgb(105,105,105)'
 
@@ -81,7 +81,7 @@ def make_final_image(original_full_path, img_dict):
     return item
 
 
-def make_size_and_price_image(filename):
+def make_size_and_price_image(filename, item_height, item_width):
     """
     :param filename: filename with no ext
 
@@ -152,12 +152,16 @@ def make_size_and_price_image(filename):
                 font=price_font,
             )
 
-    size_price_img = size_price_template.resize((900, 900))
+    size_price_dimensions = (
+        round(item_height *.25),
+        round(item_width * .25),
+    )
+    size_price_img = size_price_template.resize(size_price_dimensions)
 
     return size_price_img
 
 
-def make_item_code_image(item_code):
+def make_item_code_image(item_code, item_height, item_width):
     """
     :param item_code: str
 
@@ -174,8 +178,10 @@ def make_item_code_image(item_code):
         fill=font_color,
         font=code_font,
     )
-    code_img = code_template.resize((400, 170))
 
+    code_height = round(item_height * .05)
+    code_width = round(item_width * .12)
+    code_img = code_template.resize((code_width, code_height))
     return code_img
 
 
@@ -200,17 +206,42 @@ def process_image(dir_path, filename, batch, number, done_dir):
         dir_path,
         filename,
     )
-
-    item_code = generate_item_code(batch, number)
-    code_img = make_item_code_image(item_code)
-    size_price_img = make_size_and_price_image(filename_no_ext)
-
     item = Image.open(original_item_full_path)
+    item_code = generate_item_code(batch, number)
+    code_img = make_item_code_image(
+        item_code,
+        item.height,
+        item.width,
+    )
+    size_price_img = make_size_and_price_image(
+        filename_no_ext,
+        item.height,
+        item.width,
+    )
+
     item_copy = item.copy()
     # Add code to item
-    item_copy.paste(code_img, (20, 3275), code_img.convert('RGBA'))
+
+    # TODO: make item code coordinates configurable
+    item_copy.paste(
+        code_img,
+        ITEM_CODE_COORDS,
+        code_img.convert('RGBA'),
+    )
+    # item_copy.paste(code_img, (20, 3275), code_img.convert('RGBA'))
     # Add size & price to item
-    item_copy.paste(size_price_img, (1300, 25), size_price_img.convert('RGBA'))
+    # TODO: make item size price  coordinates configurable
+    # item_copy.paste(size_price_img, (500, 25), size_price_img.convert('RGBA'))
+
+    SIZE_PRICE_COORDS = (
+        round(item.width * .35),
+        round(item.height * .01),
+    )
+    item_copy.paste(
+        size_price_img,
+        SIZE_PRICE_COORDS,
+        size_price_img.convert('RGBA'),
+    )
 
     # Use code as filename for edited item
     final_item_code_with_ext = f'{item_code}.{ext}'
