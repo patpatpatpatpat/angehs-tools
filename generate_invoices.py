@@ -99,6 +99,6 @@ if __name__ == '__main__':
     parser.add_argument('gsheet_filename', help='Google Sheets filename')
     parser.add_argument('data_range', help='Cell range. Example: A4:C109')
     parser.add_argument('batch_name', help='For output file: Example: 15th Collection')
-    arguments = parser.parse_args()
+    arguments = dict(parser.parse_args()._get_kwargs())
 
     generate_invoices(**arguments)
