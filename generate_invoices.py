@@ -6,10 +6,6 @@ from tqdm import tqdm
 from settings import (BDO_ACCOUNT_NUMBER, GCASH_NUMBER, PALAWAN_RECIPIENT,
                       PSBANK_ACCOUNT_NUMBER, SERVICE_ACCOUNT_FILENAME)
 
-BUYER_DATA_RANGE = 'A2:C61'
-
-# TODO: include in cli args?
-COLLECTION_NAME = "Angeh's Live Selling @ 3-30-21"
 TEMPLATE = """
 =================
 💸PAYMENT OPTIONS💸
@@ -25,21 +21,22 @@ Buyer: {buyer}
 """
 
 
-def get_buyer_data_list(gsheet_filename):
+def get_buyer_data_list(gsheet_filename: str, buyer_data_range: str) -> list:
     print(f"Fetching data from Google Sheets file: {gsheet_filename}")
     gc = gspread.service_account(filename=SERVICE_ACCOUNT_FILENAME)
     sheet = gc.open(gsheet_filename).sheet1
-    buyer_data_list = sheet.get(BUYER_DATA_RANGE)
+    buyer_data_list = sheet.get(buyer_data_range)
 
     return filter(None, buyer_data_list)
 
 
-def restructure_buyer_data_list(data):
+def restructure_buyer_data_list(data: list) -> dict:
     print("Restructuring buyer data...")
     buyers_to_items_bought = {}
 
     for buyer_data in tqdm(data):
         buyer, code, price, *_ = buyer_data
+        buyer = buyer.strip()
 
         purchased_item_data = {
             'code': code,
@@ -56,7 +53,10 @@ def restructure_buyer_data_list(data):
     return buyers_to_items_bought
 
 
-def generate_invoices_file(buyer_to_items_data):
+def generate_invoices_file(buyer_to_items_data: dict, batch_name: str) -> None:
+    """
+    TOOD:
+    """
     all_invoices = ""
 
     print("Generating invoice per buyer...")
@@ -64,7 +64,7 @@ def generate_invoices_file(buyer_to_items_data):
     for buyer_name in tqdm(buyer_to_items_data.keys()):
         invoice = TEMPLATE.format(
             palawan_recipient=PALAWAN_RECIPIENT,
-            collection=COLLECTION_NAME,
+            collection=batch_name,
             buyer=buyer_name,
             gcash=GCASH_NUMBER,
             bdo=BDO_ACCOUNT_NUMBER,
@@ -80,7 +80,7 @@ def generate_invoices_file(buyer_to_items_data):
         invoice += f"----------\nTOTAL - {total} ({num_items} item/s)\n\n\n"
         all_invoices += invoice
 
-    filename = f"{COLLECTION_NAME} invoices.txt"
+    filename = f"{batch_name} invoices.txt"
 
     with open(filename, "w") as txt_file:
         txt_file.write(all_invoices)
@@ -88,15 +88,17 @@ def generate_invoices_file(buyer_to_items_data):
     print(f"Invoices file generated: {filename}")
 
 
-def generate_invoices(gsheet_filename):
-    buyer_data_list = get_buyer_data_list(gsheet_filename)
+def generate_invoices(**kwargs) -> None:
+    buyer_data_list = get_buyer_data_list(kwargs['gsheet_filename'], kwargs['data_range'])
     buyers_to_items_bought = restructure_buyer_data_list(buyer_data_list)
-    generate_invoices_file(buyers_to_items_bought)
+    generate_invoices_file(buyers_to_items_bought, kwargs['batch_name'])
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('gsheet_filename', help='Google Sheets filename')
+    parser.add_argument('data_range', help='Cell range. Example: A4:C109')
+    parser.add_argument('batch_name', help='For output file: Example: 15th Collection')
     arguments = parser.parse_args()
 
-    generate_invoices(arguments.gsheet_filename)
+    generate_invoices(**arguments)
