@@ -192,8 +192,8 @@ def make_brand_image(filename: str, item_height: int, item_width: int) -> Image.
     font_color = GRAY
     brand_template = Image.open(BRAND_TEMPLATE)
     draw_brand = ImageDraw.Draw(brand_template)
-    brand_position = 55, 260
-    brand_font = ImageFont.truetype(ARIAL, size=350)
+    brand_position = 70, 500
+    brand_font = ImageFont.truetype(ARIAL, size=300)
     draw_brand.text(
         brand_position,
         brand,
