@@ -19,6 +19,7 @@ GRAY = 'rgb(105,105,105)'
 MARKER_FELT = 'MarkerFelt.ttc'
 AMERICAN_TYPEWRITER = 'AmericanTypewriter.ttc'
 ARIAL = 'Arial.ttf'
+MIN_BID_ADDON = 20
 
 
 def prepare_for_renaming(dir_path):
@@ -81,21 +82,14 @@ def make_final_image(original_full_path, img_dict):
     return item
 
 
-def make_size_and_price_image(filename: str, item_height: int, item_width: int):
-    """
-    :param filename: filename with no ext
-
-    Expected filename
-
-    1_M-S_200_220_<brand>_<new|old>
-
-    1 - Unique identifier
-    M-S - Size
-    200 - mine price
-    220 - starting bid price
-    """
-    unique_identifier, size_text, *prices, brand, is_new_or_old = filename.split('_')
-
+def make_size_and_price_image(
+    size_text: str,
+    price: int,
+    bid_price: int,
+    item_height: int,
+    item_width: int,
+) -> Image.Image:
+    prices = (price, bid_price)
     font_color = GRAY
     size_price_template = Image.open(ITEM_SIZE_PRICE_TEMPLATE)
     draw_size_price = ImageDraw.Draw(size_price_template)
@@ -112,13 +106,13 @@ def make_size_and_price_image(filename: str, item_height: int, item_width: int):
 
     price_index_to_label = {
         0: 'mine:',
-        1: 'steal:',
     }
 
     price_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=275)
 
     size_price_y += 25
 
+    # TODO: remove loop
     for i, price in enumerate(prices):
         size_price_y += 300
 
@@ -182,17 +176,8 @@ def make_item_code_image(item_code: str, item_height: int, item_width: int):
     return code_img
 
 
-def make_brand_image(filename: str, item_height: int, item_width: int) -> Image.Image:
-    """
-    Expected filename
-
-    1_M-S_200_220_<brand>_<new|old> - has brand
-    1_M-S_200_220_*_<new|old> - no brand
-
-    """
-    brand = filename.split('_')[-2]
-
-    if brand == '*':
+def make_brand_image(brand: str, item_height: int, item_width: int) -> Image.Image:
+    if not brand:
         return
 
     font_color = GRAY
@@ -248,45 +233,29 @@ def process_image(dir_path, filename, batch, number, done_dir):
     )
     item = Image.open(original_item_full_path)
     item_code = generate_item_code(batch, number)
+    item_data = extract_data_from_filename(filename_no_ext)
+
     code_img = make_item_code_image(
         item_code,
         item.height,
         item.width,
     )
     size_price_img = make_size_and_price_image(
-        filename_no_ext,
-        item.height,
-        item.width,
+        size=item_data.get("size"),
+        price=item_data.get("price"),
+        bid_price=item_data.get("bid_price"),
+        item_height=item.height,
+        item_width=item.width,
     )
-    brand_img = make_brand_image(
-        filename_no_ext,
-        item.height,
-        item.width,
-    )
-    new_or_old = filename_no_ext.split('_')[-1]
-
-    if new_or_old == 'new':
-        bnew_tag_img = make_brand_new_tag_image(
-            item.height,
-            item.width,
-        )
-    else:
-        bnew_tag_img = None
-
     item_copy = item.copy()
-    # Add code to item
 
-    # TODO: make item code coordinates configurable
+    # Add code to item
     item_copy.paste(
         code_img,
         ITEM_CODE_COORDS,
         code_img.convert('RGBA'),
     )
-    # item_copy.paste(code_img, (20, 3275), code_img.convert('RGBA'))
     # Add size & price to item
-    # TODO: make item size price  coordinates configurable
-    # item_copy.paste(size_price_img, (500, 25), size_price_img.convert('RGBA'))
-
     SIZE_PRICE_COORDS = (
         round(item.width * .35),
         round(item.height * .01),
@@ -296,7 +265,13 @@ def process_image(dir_path, filename, batch, number, done_dir):
         SIZE_PRICE_COORDS,
         size_price_img.convert('RGBA'),
     )
-    if brand_img:
+
+    if item_data.get("brand"):
+        brand_img = make_brand_image(
+            brand=item_data.get("brand"),
+            item_height=item.height,
+            item_width=item.width,
+        )
         brand_x = 0
         brand_y = item.height - brand_img.height
         item_copy.paste(
@@ -305,7 +280,11 @@ def process_image(dir_path, filename, batch, number, done_dir):
             brand_img.convert('RGBA')
         )
 
-    if bnew_tag_img:
+    if item_data["is_new"]:
+        bnew_tag_img = make_brand_new_tag_image(
+            item.height,
+            item.width,
+        )
         bnew_tag_x = item.width - bnew_tag_img.width
         bnew_tag_y = item.height - bnew_tag_img.height
         item_copy.paste(
@@ -331,6 +310,30 @@ def process_image(dir_path, filename, batch, number, done_dir):
         full_path,
         done_dir,
     )
+
+
+def extract_data_from_filename(filename: str) -> dict:
+    """
+    filename: filename with no extension
+
+    Format: <size>_<price>_<brand>_<is_new>
+
+    Examples:
+        large_300_atmosphere_y
+        (Large size, 300 initial price, atmosphere brand, brand new)
+
+        small_200_n_n
+        (small size, 200 initial price, no brand, not brand new)
+    """
+    size, price, brand, is_new = filename.split('_')
+
+    return {
+        "size": size.upper(),
+        "price": price,
+        "bid_price": int(price) + MIN_BID_ADDON,
+        "brand": brand.upprt() if brand != "n" else None,
+        "is_new": True if is_new == "y" else False
+    }
 
 
 if __name__ == '__main__':
