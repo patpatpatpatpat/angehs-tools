@@ -8,6 +8,7 @@ from tqdm import tqdm
 BRAND_TEMPLATE = 'templates/brand.PNG'
 ITEM_CODE_TEMPLATE = 'templates/code.PNG'
 ITEM_SIZE_PRICE_TEMPLATE = 'templates/size_price.PNG'
+BNEW_TAG_TEMPLATE = 'templates/brand_new_tag.PNG'
 DONE_DIR = 'done'
 IMG_EXTS = ['JPG', 'JPEG']
 ITEM_CODE_COORDS = (0, 0)
@@ -86,14 +87,14 @@ def make_size_and_price_image(filename: str, item_height: int, item_width: int):
 
     Expected filename
 
-    1_M-S_200_220
+    1_M-S_200_220_<brand>_<new|old>
 
     1 - Unique identifier
     M-S - Size
     200 - mine price
     220 - starting bid price
     """
-    unique_identifier, size_text, *prices, brand = filename.split('_')
+    unique_identifier, size_text, *prices, brand, is_new_or_old = filename.split('_')
 
     font_color = GRAY
     size_price_template = Image.open(ITEM_SIZE_PRICE_TEMPLATE)
@@ -183,8 +184,13 @@ def make_item_code_image(item_code: str, item_height: int, item_width: int):
 
 def make_brand_image(filename: str, item_height: int, item_width: int) -> Image.Image:
     """
+    Expected filename
+
+    1_M-S_200_220_<brand>_<new|old> - has brand
+    1_M-S_200_220_*_<new|old> - no brand
+
     """
-    brand = filename.split('_')[-1]
+    brand = filename.split('_')[-2]
 
     if brand == '*':
         return
@@ -205,6 +211,18 @@ def make_brand_image(filename: str, item_height: int, item_width: int) -> Image.
     brand_img = brand_template.resize((brand_width, brand_height))
 
     return brand_img
+
+
+def make_brand_new_tag_image(item_height: int, item_width: int) -> Image.Image:
+    """
+    """
+    tag_template = Image.open(BNEW_TAG_TEMPLATE)
+    tag_height = round(item_height * .15)
+    tag_width = round(item_width * .20)
+
+    tag_img = tag_template.resize((tag_width, tag_height))
+
+    return tag_img
 
 
 def generate_item_code(batch, number):
@@ -245,6 +263,15 @@ def process_image(dir_path, filename, batch, number, done_dir):
         item.height,
         item.width,
     )
+    new_or_old = filename_no_ext.split('_')[-1]
+
+    if new_or_old == 'new':
+        bnew_tag_img = make_brand_new_tag_image(
+            item.height,
+            item.width,
+        )
+    else:
+        bnew_tag_img = None
 
     item_copy = item.copy()
     # Add code to item
@@ -276,6 +303,15 @@ def process_image(dir_path, filename, batch, number, done_dir):
             brand_img,
             (brand_x, brand_y),
             brand_img.convert('RGBA')
+        )
+
+    if bnew_tag_img:
+        bnew_tag_x = item.width - bnew_tag_img.width
+        bnew_tag_y = item.height - bnew_tag_img.height
+        item_copy.paste(
+            bnew_tag_img,
+            (bnew_tag_x, bnew_tag_y),
+            bnew_tag_img.convert('RGBA'),
         )
 
     # Use code as filename for edited item
