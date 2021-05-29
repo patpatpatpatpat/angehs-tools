@@ -54,7 +54,7 @@ def prepare_dir_for_publishing(dir_path):
         os.mkdir(done_dir)
 
     for index, item in tqdm(enumerate(os.listdir(dir_path), start=1)):
-        try:
+        try:  # TODO: USE logging
             process_image(
                 dir_path,
                 item,
@@ -62,8 +62,9 @@ def prepare_dir_for_publishing(dir_path):
                 index,
                 done_dir,
             )
-        except Exception:
-            print(f'Error happened for: {item}')
+        except Exception as e:
+            print(f'Error happened for: {item} {e}')
+            break
 
 
 def make_final_image(original_full_path, img_dict):
@@ -82,14 +83,14 @@ def make_final_image(original_full_path, img_dict):
     return item
 
 
-def make_size_and_price_image(
+def make_size_and_price_code_image(
     size_text: str,
     price: int,
     bid_price: int,
     item_height: int,
     item_width: int,
+    item_code: str,
 ) -> Image.Image:
-    prices = (price, bid_price)
     font_color = GRAY
     size_price_template = Image.open(ITEM_SIZE_PRICE_TEMPLATE)
     draw_size_price = ImageDraw.Draw(size_price_template)
@@ -97,53 +98,60 @@ def make_size_and_price_image(
     size_price_x = 325
     size_price_y = 325
 
+    # Add size
     draw_size_price.text(
         (size_price_x, size_price_y),
         size_text,
         fill=font_color,
         font=size_price_font,
     )
-
-    price_index_to_label = {
-        0: 'mine:',
-    }
-
     price_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=275)
 
     size_price_y += 25
 
-    # TODO: remove loop
-    for i, price in enumerate(prices):
-        size_price_y += 300
+    # Add Mine price
+    size_price_y += 300
+    min_price_text = f"mine: {price}"
+    draw_size_price.text(
+        (size_price_x, size_price_y),
+        min_price_text,
+        fill=font_color,
+        font=price_font,
+    )
 
-        if i == 1:
-            bid_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=150)
-            size_price_x += 25
-            bid_text_1 = 'Open for bidding'
-            bid_text_2 = f'Starts at {price}'
-            draw_size_price.text(
-                (size_price_x, size_price_y),
-                bid_text_1,
-                fill=font_color,
-                font=bid_font,
-            )
-            size_price_x += 50
-            bid_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=175)
-            size_price_y += 150
-            draw_size_price.text(
-                (size_price_x, size_price_y),
-                bid_text_2,
-                fill=font_color,
-                font=bid_font,
-            )
-        else:
-            price_text = f'{price_index_to_label[i]} {price}'
-            draw_size_price.text(
-                (size_price_x, size_price_y),
-                price_text,
-                fill=font_color,
-                font=price_font,
-            )
+    # Add Open for Bidding text
+    size_price_y += 300
+    bid_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=150)
+    size_price_x += 25
+    bid_text_1 = 'Open for bidding'
+    draw_size_price.text(
+        (size_price_x, size_price_y),
+        bid_text_1,
+        fill=font_color,
+        font=bid_font,
+    )
+    # Add bid price
+    bid_text_2 = f'Starts at {bid_price}'
+    size_price_x += 50
+    bid_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=175)
+    size_price_y += 150
+    draw_size_price.text(
+        (size_price_x, size_price_y),
+        bid_text_2,
+        fill=font_color,
+        font=bid_font,
+    )
+
+    # Add code
+    size_price_x += 185
+    size_price_y += 225
+    bid_font = ImageFont.truetype(AMERICAN_TYPEWRITER, size=300)
+    draw_size_price.text(
+        (size_price_x, size_price_y),
+        item_code,
+        fill=font_color,
+        font=bid_font,
+    )
 
     size_price_dimensions = (
         round(item_height * .25),
@@ -235,26 +243,16 @@ def process_image(dir_path, filename, batch, number, done_dir):
     item_code = generate_item_code(batch, number)
     item_data = extract_data_from_filename(filename_no_ext)
 
-    code_img = make_item_code_image(
-        item_code,
-        item.height,
-        item.width,
-    )
-    size_price_img = make_size_and_price_image(
-        size=item_data.get("size"),
-        price=item_data.get("price"),
-        bid_price=item_data.get("bid_price"),
+    size_price_img = make_size_and_price_code_image(
+        size_text=item_data["size"],
+        price=item_data["price"],
+        bid_price=item_data["bid_price"],
         item_height=item.height,
         item_width=item.width,
+        item_code=item_code,
     )
     item_copy = item.copy()
 
-    # Add code to item
-    item_copy.paste(
-        code_img,
-        ITEM_CODE_COORDS,
-        code_img.convert('RGBA'),
-    )
     # Add size & price to item
     SIZE_PRICE_COORDS = (
         round(item.width * .35),
@@ -331,7 +329,7 @@ def extract_data_from_filename(filename: str) -> dict:
         "size": size.upper(),
         "price": price,
         "bid_price": int(price) + MIN_BID_ADDON,
-        "brand": brand.upprt() if brand != "n" else None,
+        "brand": brand.upper() if brand != "n" else None,
         "is_new": True if is_new == "y" else False
     }
 
