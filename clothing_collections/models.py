@@ -4,7 +4,10 @@ from django.utils.text import slugify
 
 
 def item_image_path(instance, filename):
-    return f"{instance.batch.slug}/{filename}"
+    return f"{instance.batch.slug}/final/{filename}"
+
+def raw_item_image_path(instance, filename):
+    return f"{instance.batch.slug}/raw/{filename}"
 
 
 class Size(models.Model):
@@ -25,6 +28,7 @@ class Batch(models.Model):
     for_bid = models.BooleanField(default=True)
     min_bid_add_on = models.PositiveIntegerField(default=20)
     slug = models.SlugField(max_length=50, blank=True)
+    prefix = models.SlugField(max_length=5)
 
     class Meta:
         verbose_name = "batch"
@@ -37,13 +41,23 @@ class Batch(models.Model):
         self.slug = slugify(self.name)
         super().save(*args, **kwargs)
 
+    def calculate_potential_earnings(self) -> int:
+        # TODO
+        return 0
+
+
+class RawItem(models.Model):
+    batch = models.ForeignKey(Batch, related_name="raw_items", on_delete=models.CASCADE)
+    image = models.ImageField(upload_to=raw_item_image_path)
+
 
 class Item(models.Model):
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
+    raw_item = models.ForeignKey(RawItem, on_delete=models.CASCADE)
     code = models.CharField(max_length=5)
     price = models.PositiveIntegerField()
     size = models.ForeignKey(Size, on_delete=models.CASCADE)
     brand = models.CharField(max_length=20, blank=True)
+    brand_new = models.BooleanField(default=False)
     image = models.ImageField(upload_to=item_image_path)
 
     def __str__(self):

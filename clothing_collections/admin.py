@@ -19,13 +19,21 @@ class BatchAdmin(admin.ModelAdmin):
     ]
 
 
+@admin.register(models.RawItem)
+class RawItemAdmin(admin.ModelAdmin):
+    list_display = [
+        "batch",
+    ]
+    list_filter = ["batch"]
+
+
 @admin.register(models.Item)
 class ItemAdmin(admin.ModelAdmin):
     list_display = [
-        "batch",
+        "raw_item",
         "code",
         "price",
         "size",
         "brand",
     ]
-    list_filter = ["batch", "brand", "size"]
+    list_filter = ["raw_item__batch", "brand", "size"]
